@@ -16,10 +16,14 @@ CREATE TABLE orders (
 );
 
 -- Devoluciones
+-- UNIQUE en order_id: un pedido solo puede tener una devolución.
+-- CHECK en status: solo se permiten estados conocidos.
 CREATE TABLE returns (
     id SERIAL PRIMARY KEY,
-    order_id INTEGER NOT NULL REFERENCES orders(id),
+    order_id INTEGER NOT NULL UNIQUE REFERENCES orders(id),
     reason TEXT,
-    status TEXT NOT NULL DEFAULT 'pending',
+    status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'approved', 'rejected')),
+    resolution TEXT CHECK (resolution IN ('refund', 'exchange')),
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

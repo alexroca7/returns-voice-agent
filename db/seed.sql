@@ -1,3 +1,9 @@
+-- Recarga completa: vacía las tablas y reinicia los ids, todo en una transacción.
+-- Se puede volver a ejecutar cuando quieras para refrescar las fechas.
+BEGIN;
+
+TRUNCATE customers, orders, returns RESTART IDENTITY CASCADE;
+
 -- Clientes
 INSERT INTO customers (name, email, postal_code) VALUES
 ('Marta Gómez', 'marta.gomez@example.com', '28001'),
@@ -17,4 +23,13 @@ INSERT INTO orders (customer_id, product_name, is_outlet, order_date) VALUES
 (4, 'Gorra negra', TRUE,  CURRENT_DATE - INTERVAL '2 days'),
 (5, 'Vestido verde, talla M', FALSE, CURRENT_DATE - INTERVAL '15 days'),
 (5, 'Bufanda roja', FALSE, CURRENT_DATE - INTERVAL '1 days'),
-(2, 'Cinturón marrón', FALSE, CURRENT_DATE - INTERVAL '35 days');
+(2, 'Cinturón marrón', FALSE, CURRENT_DATE - INTERVAL '35 days'),
+-- Caso límite: exactamente 30 días (debe seguir siendo devolvible)
+(1, 'Calcetines grises', FALSE, CURRENT_DATE - INTERVAL '30 days');
+
+-- Devoluciones ya existentes (para probar el caso "ya devuelto")
+-- Pedido 8 (Vestido verde) ya tiene una devolución registrada
+INSERT INTO returns (order_id, reason, status) VALUES
+(8, 'No me queda bien', 'pending');
+
+COMMIT;
