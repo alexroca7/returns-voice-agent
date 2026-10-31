@@ -1,5 +1,6 @@
 from typing import Literal
 
+import psycopg
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
@@ -60,29 +61,81 @@ def eligibility_result(code: str) -> dict:
     return {"eligible": code == "ok", "code": code, "message": MESSAGES[code]}
 
 
+def eligibility_code(conn, order_id: int, postal_code: str) -> str:
+    row = conn.execute(
+        """
+        SELECT o.is_outlet,
+               CURRENT_DATE - o.order_date AS days_old,
+               EXISTS (SELECT 1 FROM returns r WHERE r.order_id = o.id) AS has_return
+        FROM orders o
+        JOIN customers c ON c.id = o.customer_id
+        WHERE o.id = %s AND c.postal_code = %s
+        """,
+        (order_id, postal_code.strip()),
+    ).fetchone()
+
+    if row is None:
+        return "not_found"
+    is_outlet, days_old, has_return = row
+    if has_return:
+        return "already_returned"
+    if is_outlet:
+        return "outlet"
+    if days_old > RETURN_WINDOW_DAYS:
+        return "expired"
+    return "ok"
+
+
 @app.post("/returns/eligibility", response_model=EligibilityResponse)
 def check_eligibility(body: EligibilityRequest):
     with get_connection() as conn:
-        row = conn.execute(
-            """
-            SELECT o.is_outlet,
-                   CURRENT_DATE - o.order_date AS days_old,
-                   EXISTS (SELECT 1 FROM returns r WHERE r.order_id = o.id) AS has_return
-            FROM orders o
-            JOIN customers c ON c.id = o.customer_id
-            WHERE o.id = %s AND c.postal_code = %s
-            """,
-            (body.order_id, body.postal_code.strip()),
-        ).fetchone()
+        code = eligibility_code(conn, body.order_id, body.postal_code)
+    return eligibility_result(code)
 
-    if row is None:
-        return eligibility_result("not_found")
 
-    is_outlet, days_old, has_return = row
-    if has_return:
-        return eligibility_result("already_returned")
-    if is_outlet:
-        return eligibility_result("outlet")
-    if days_old > RETURN_WINDOW_DAYS:
-        return eligibility_result("expired")
-    return eligibility_result("ok")
+MESSAGES["registered"] = (
+    "Perfecto, he registrado tu devolución. El equipo te confirmará los plazos."
+)
+
+
+class ReturnRequest(BaseModel):
+    order_id: int
+    postal_code: str
+    resolution: Literal["refund", "exchange"]
+    reason: str | None = None
+
+
+class ReturnResponse(BaseModel):
+    registered: bool
+    code: Literal["registered", "not_found", "already_returned", "outlet", "expired"]
+    message: str
+    return_id: int | None = None
+
+
+def return_result(code: str, return_id: int | None = None) -> dict:
+    return {
+        "registered": code == "registered",
+        "code": code,
+        "message": MESSAGES[code],
+        "return_id": return_id,
+    }
+
+
+@app.post("/returns", response_model=ReturnResponse)
+def create_return(body: ReturnRequest):
+    with get_connection() as conn:
+        code = eligibility_code(conn, body.order_id, body.postal_code)
+        if code != "ok":
+            return return_result(code)
+        try:
+            row = conn.execute(
+                """
+                INSERT INTO returns (order_id, reason, resolution)
+                VALUES (%s, %s, %s)
+                RETURNING id
+                """,
+                (body.order_id, body.reason, body.resolution),
+            ).fetchone()
+        except psycopg.errors.UniqueViolation:
+            return return_result("already_returned")
+    return return_result("registered", row[0])
