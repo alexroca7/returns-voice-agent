@@ -1,18 +1,41 @@
+import os
+import secrets
 from typing import Literal
 
 import psycopg
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Security
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 
 from app.db import get_connection
 
+API_KEY = os.environ.get("API_KEY")
+if not API_KEY:
+    raise RuntimeError(
+        "Falta la variable de entorno API_KEY. Defínela en el archivo .env (mira .env.example)."
+    )
+
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+def verify_api_key(key: str | None = Security(api_key_header)) -> None:
+    # compare_digest compara en tiempo constante; con bytes admite cualquier carácter.
+    if key is None or not secrets.compare_digest(key.encode(), API_KEY.encode()):
+        raise HTTPException(status_code=401, detail="API key inválida o ausente")
+
+
 app = FastAPI()
 
+# Todo lo que cuelga de este router exige la cabecera X-API-Key.
+router = APIRouter(dependencies=[Depends(verify_api_key)])
+
+
+# /health queda fuera del router: es el único endpoint sin API key.
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
 
-@app.get("/orders/{order_id}")
+@router.get("/orders/{order_id}")
 def get_order(order_id: int):
     conn = get_connection()
     cur = conn.cursor()
@@ -86,7 +109,7 @@ def eligibility_code(conn, order_id: int, postal_code: str) -> str:
     return "ok"
 
 
-@app.post("/returns/eligibility", response_model=EligibilityResponse)
+@router.post("/returns/eligibility", response_model=EligibilityResponse)
 def check_eligibility(body: EligibilityRequest):
     with get_connection() as conn:
         code = eligibility_code(conn, body.order_id, body.postal_code)
@@ -121,7 +144,7 @@ def return_result(code: str, return_id: int | None = None) -> dict:
     }
 
 
-@app.post("/returns", response_model=ReturnResponse)
+@router.post("/returns", response_model=ReturnResponse)
 def create_return(body: ReturnRequest):
     with get_connection() as conn:
         code = eligibility_code(conn, body.order_id, body.postal_code)
@@ -139,3 +162,7 @@ def create_return(body: ReturnRequest):
         except psycopg.errors.UniqueViolation:
             return return_result("already_returned")
     return return_result("registered", row[0])
+
+
+# Debe ir al final: include_router copia las rutas que ya estén definidas.
+app.include_router(router)
