@@ -1,0 +1,19 @@
+# Secretos: NUNCA deben entrar en la imagen (ni .env ni ninguna variante)
+.env
+.env.*
+*.pem
+*.key
+
+# Entorno y cachés locales (se reconstruyen dentro de la imagen)
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Lo que la imagen no necesita para ejecutar la API
+tests/
+.git/
+.gitignore
+Dockerfile
+.dockerignore
+README.md
