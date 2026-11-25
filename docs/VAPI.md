@@ -84,7 +84,8 @@ creadas. Ver la sección 5.
   persona o cuando una herramienta haya fallado dos veces. Antes de usarla, avisa al cliente de que vas a pasarle con
   el equipo."
 - **Destino:** un número de teléfono en formato internacional **sin espacios** (`+34XXXXXXXXX`), que no se guarda aquí.
-  El campo **Message to Customer** del destino se deja **vacío**: el aviso lo dice el agente, para que no se oiga dos
+  El campo **Message to Customer** del destino lleva el aviso ("Te paso con el equipo de Venison, un momento por
+  favor."): lo dice la herramienta y el agente no habla antes, para que no se oiga dos
   veces.
 - **Modo de transferencia:** `warm-transfer-say-summary` (el asistente llama, resume la llamada a la persona que
   contesta y conecta al cliente).
@@ -139,9 +140,9 @@ Tu primer mensaje ya se ha dicho: no vuelvas a saludar ni a presentarte. Empieza
 # Límites
 - Nunca prometas un reembolso, un plazo ni un importe. Que la devolución esté registrada no significa que esté aprobada.
 - Si pregunta por la política, puedes decir lo básico: se puede devolver dentro de los 30 días desde el pedido, los productos de outlet no se devuelven, cada pedido admite una sola devolución y la solución puede ser reembolso o cambio. Los plazos y los importes los confirma el equipo de Venison.
-- Si pide hablar con una persona, avísale con esta frase exacta: "Sí, claro. Te paso con el equipo de Venison ya mismo, un momento por favor." y llama a transfer_call_tool en ese mismo turno. Para eso no uses ninguna otra herramienta; nunca uses create_return.
+- Si pide hablar con una persona, llama a transfer_call_tool sin decir nada antes: la herramienta ya avisa al cliente. Para eso no uses ninguna otra herramienta; nunca uses create_return.
 - Si pregunta algo que no tiene que ver con devoluciones, dile amablemente que solo puedes ayudarle con devoluciones.
-- Si una herramienta falla, dile que hay un problema técnico y ofrece intentarlo de nuevo una vez. Si sigue fallando, avísale con la frase "Te paso con el equipo de Venison para que solucionen el problema, un momento por favor." y llama a transfer_call_tool en ese mismo turno.
+- Si una herramienta falla, dile que hay un problema técnico y ofrece intentarlo de nuevo una vez. Si sigue fallando, llama a transfer_call_tool sin decir nada antes: la herramienta ya avisa al cliente.
 
 # Cierre
 - Después de leer el mensaje de create_return, o el de un pedido que no se puede devolver, pregunta si necesita algo más.
@@ -156,8 +157,8 @@ Tu primer mensaje ya se ha dicho: no vuelvas a saludar ni a presentarte. Empieza
 | El agente llamaba a `create_return` al despedirse o al pedir una persona | `end_call_tool` y `transfer_call_tool` existían pero **no estaban asociadas al asistente** (faltaban en `toolIds`) | Asociar las cuatro herramientas y comprobar el JSON del asistente |
 | No se guardaba el motivo | El prompt decía a la vez "pregunta el motivo" y "llama a `create_return` al elegir" | Preguntar el motivo **antes** de llamar a `create_return` |
 | El agente decía en voz alta "Dilo como un número normal" | Una regla del prompt escrita como orden fue leída como algo que decir al cliente | Reglas redactadas como "si tienes que repetir…" |
-| Pedía el pedido y el código postal tras corregir solo uno | El mensaje `not_found` de la API pide ambos y el agente lo leía tal cual | El prompt no lee ese mensaje: pregunta qué dato corregir |
-| Anuncio de transferencia duplicado | Lo decían el agente y el mensaje del destino | Dejar solo el del agente y vaciar el mensaje del destino |
+| Pedía el pedido y el código postal tras corregir solo uno | El mensaje `not_found` de la API pide ambos y el agente lo leía tal cual | El prompt no lee ese mensaje: repite lo entendido y pregunta si lo ha entendido bien |
+| Anuncio de transferencia duplicado y, al vaciar el mensaje del destino, silencio | Primero lo decían el agente y el mensaje del destino; después el agente llamaba a la herramienta sin decir nada | El aviso lo dice solo la herramienta (mensaje del destino) y el agente no habla antes |
 | Cifras del código postal mal leídas ("4. 10. 03") | El modelo las escribía con números | Pedirle que las escriba con letras, separadas por comas |
 
 La API rechazó siempre las llamadas incorrectas a `create_return` (por eso la base nunca recibió devoluciones de más).
@@ -171,10 +172,10 @@ Eso es lo que justifica tener las reglas en la API y no en el prompt.
 | Caducado | Pedido 2, CP 28001 | ✔ |
 | Ya devuelto | Pedido 8, CP 28005 | ✔ |
 | No encontrado, tres intentos | Pedido 999 | ✔ |
-| Código postal erróneo y corrección | Pedido 5, CP 08002 y luego 41003 | ✔ (antes de los últimos ajustes) |
+| Código postal erróneo y corrección | Pedido 5, CP 08002 y luego 41003 | ✔ repite lo entendido, pregunta si lo ha entendido bien y comprueba de nuevo sin volver a pedir el pedido |
 | Registro con reembolso y motivo | Pedido 1, CP 28001 | ✔ fila en `returns` con el motivo |
 | Rechazo del cliente y colgar | Pedido 5, CP 41003 | ✔ no llama a `create_return` y cuelga sola |
-| Pedir una persona | — | ✔ llama a `transfer_call_tool`; ver límites |
+| Pedir una persona | — | ✔ aviso único y llamada a `transfer_call_tool`; ver límites |
 
 Los datos son los del seed (`db/seed.sql`). Sus fechas son fijas desde el día que se carga, así que los casos
 caducan con el tiempo: conviene recargar el seed antes de repetir las pruebas.
@@ -182,7 +183,9 @@ caducan con el tiempo: conviene recargar el seed antes de repetir las pruebas.
 ## 7. Límites conocidos
 
 - **La transferencia solo se ha verificado como llamada a la herramienta**, desde el navegador. Que conecte con una
-  persona real requiere una llamada telefónica, que no se ha probado.
+  persona real requiere una llamada telefónica, que no se ha probado. En el registro de Vapi la llamada web acaba con
+  "Call ended due to transfer failure": se atribuye a que es una llamada desde el navegador, pero la causa no se ha
+  comprobado (también podría deberse al número de destino).
 - Con `gpt-4.1-mini`, el agente toma al pie de la letra las instrucciones del prompt. Si se vuelven a ver errores al
   elegir herramientas, el primer cambio a probar es un modelo mayor.
 - Cada pedido admite una sola devolución: para repetir un registro hay que recargar el seed o usar otro pedido.
