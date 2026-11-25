@@ -166,7 +166,7 @@ alternativa es la opción C. La contraseña de PostgreSQL en Lightsail no puede 
 
 ### 3.6 Apagar todo
 
-A finales de noviembre, para dejar de pagar:
+Cuando termine la demo, para dejar de pagar (estaba prevista para finales de noviembre y se amplió, ver sección 4):
 1. Lightsail → Containers → `returns-api` → borrar el servicio.
 2. Lightsail → Databases → `venison-db` → borrar la base. Parar no basta: ambos se cobran mientras existan.
 3. Docker Hub: borrar el token `subir-imagen` y, si quieres, el repositorio `returns-api`.
@@ -176,5 +176,7 @@ A finales de noviembre, para dejar de pagar:
 
 - La base queda **pública con contraseña fuerte**; no se probó el modo privado.
 - Docker Desktop.
-- La demo estará en marcha hasta **finales de noviembre**; después, apagar todo (ver 3.6).
+- La demo estaba prevista hasta **finales de noviembre**, pero se decidió **alargarla hasta después de una reunión
+  para enseñar el proyecto**. Después se decide si apagar todo (ver 3.6) o mantenerla. Si se apaga la API, el agente
+  de voz deja de funcionar, porque sus herramientas no tendrán a quién llamar.
 - Imagen en **Docker Hub público** (sin secretos) en lugar de usuario IAM + `lightsailctl`.
