@@ -30,6 +30,11 @@ Resumen de [docs/politica.md](docs/politica.md):
 - La solución puede ser **reembolso** o **cambio**, según elija el cliente.
 - El agente **no promete plazos** de reembolso: los confirma el equipo.
 
+## Visión de negocio
+
+Por qué importa este caso de uso, para quién, qué decisiones de experiencia se tomaron, cómo se mediría el éxito y
+qué riesgos tiene: **[docs/NEGOCIO.md](docs/NEGOCIO.md)**.
+
 ## La API
 
 | Endpoint | Para qué sirve | ¿Necesita clave? |
@@ -58,6 +63,7 @@ returns-voice-agent/
 │   └── seed.sql           datos de demostración (recarga completa)
 └── docs/
     ├── politica.md        política de devoluciones
+    ├── NEGOCIO.md         visión de negocio: problema, propuesta, métricas y riesgos
     ├── DEPLOY.md          despliegue en AWS Lightsail, paso a paso
     └── VAPI.md            configuración del agente de voz en Vapi
 ```
