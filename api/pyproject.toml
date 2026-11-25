@@ -1,7 +1,7 @@
 [project]
-name = "api"
+name = "returns-api"
 version = "0.1.0"
-description = "Add your description here"
+description = "API de devoluciones para el agente de voz de Venison (FastAPI + PostgreSQL)"
 readme = "README.md"
 authors = [
     { name = "Alejandro" }
@@ -13,12 +13,9 @@ dependencies = [
     "uvicorn[standard]>=0.54.0",
 ]
 
-[project.scripts]
-api = "api:main"
-
-[build-system]
-requires = ["uv_build>=0.12.19,<0.13.0"]
-build-backend = "uv_build"
+# Es una aplicación, no una librería: uv no la empaqueta ni la instala, solo instala sus dependencias.
+[tool.uv]
+package = false
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

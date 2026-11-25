@@ -1,4 +1,6 @@
-# Imagen de la API para Lightsail (Linux amd64).
+# check=skip=FromPlatformFlagConstDisallowed
+# Imagen de la API para Lightsail (Linux amd64). La plataforma va fijada a propósito: así la imagen sale siempre
+# para el procesador de los servidores, aunque se construya desde un Mac con Apple Silicon.
 # Se construye desde la carpeta api/:  docker build --platform linux/amd64 -t returns-api api
 FROM --platform=linux/amd64 python:3.12-slim
 
